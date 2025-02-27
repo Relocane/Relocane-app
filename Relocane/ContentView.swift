@@ -9,13 +9,12 @@ import SwiftUI
 import Foundation
 import CoreBluetooth
 
-var bleManager = BLEmanager()
-
 
 struct BluetoothSettingsView: View {
     @EnvironmentObject var bleManager: BLEmanager
     
     var body: some View {
+        
         VStack(spacing: 10) {
             Button(action: {bleManager.clearStack()}) {
                 Text("Refresh")
@@ -33,8 +32,10 @@ struct BluetoothSettingsView: View {
 }
 
 struct BluetoothDevicesView: View {
+    @EnvironmentObject var bleManager: BLEmanager
     
     var body: some View {
+        Text(bleManager.description)
         VStack(spacing: 20) {
             List(bleManager.peripherals.filter({$0.name != "Unknown"}))
             {peripheral in
@@ -99,6 +100,7 @@ struct BluetoothDevicesView: View {
             Spacer()
         }
         
+        
         .onDisappear {
             bleManager.clearStack()
         }
@@ -122,12 +124,29 @@ struct BluetoothDevicesView: View {
     }
 }
 
-
-struct ContentView_Previews: PreviewProvider {
-    @StateObject var bleManager: BLEmanager
+struct MyApp: App {
     
-    static var previews: some View {
+    var bleManager = BLEmanager()
+    
+    var body: some Scene {
+        WindowGroup {
+            ContentView()
+                .environmentObject(bleManager)
+        }
+    }
+    
+}
+
+
+struct ContentView: View {
+    var body: some View {
         BluetoothDevicesView()
-            .environmentObject(bleManager)
+            .environmentObject(BLEmanager())
+    }
+}
+struct ContentView_Previews: PreviewProvider {
+    static var previews: some View {
+        ContentView()
+            .environmentObject(BLEmanager())
     }
 }
