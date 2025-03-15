@@ -2,16 +2,9 @@
 //  BLEmanager.swift
 //  Relocane
 //
-//  Created by Coding Club on 2/10/25.
+//  Created by: RELOCANE LLC on 2/10/25.
 //
 
-
-//
-//  BLEmanager.swift
-//  Finder by ReloCane
-//
-//  Created by Cristian on 1/8/25.
-//
 
 import Foundation
 import SwiftUI //just to make sure
@@ -25,14 +18,20 @@ class BLEmanager: NSObject, ObservableObject, CBCentralManagerDelegate, CBPeriph
     @Published var peripherals = [Peripheral]() //array of peripherals
     @Published var connectedperip: CBPeripheral? //the actual fucking peripheral
     @Published var connectedUUID: UUID? //uuid of the connected peripheral
+    @Published var strength = -100 //STRENGTH FOR THE BEEP
     @Published var startConnect = false //false = hit connect, hasnt connected
     @Published var gotagain = true //when you connect to a device, did you see it again?
     @Published var FAKED = true //if youre trying to pseudo connect, we need this for BOB (prioritize only BOB without actually connecting)
     //make FAKED start at true, stored mode by default
     
+    @AppStorage("STRING_KEY") var connected = "none"
     
     override init() {
+        print("New BLEmanager made...")
         super.init() //super that initializer
+        if (self.connected != "none") {
+            connectedUUID = UUID(uuidString: connected) //hopefully loading the thingie???
+        }
         central = CBCentralManager(delegate: self, queue: nil)
     }
     
@@ -58,10 +57,11 @@ class BLEmanager: NSObject, ObservableObject, CBCentralManagerDelegate, CBPeriph
         }
         
         connectedUUID = n.identifier
+        connected = connectedUUID?.uuidString ?? "none"
         n.delegate = self
         print("starting connection...")
         if (FAKED) {
-            print("Not actually connected via bluetooth, only prioritizing its signal strength!")
+            print("Not actually connected via bluetooth, only prioritizing "+n.identifier.uuidString)
             refreshing()
             return
         }
@@ -78,6 +78,7 @@ class BLEmanager: NSObject, ObservableObject, CBCentralManagerDelegate, CBPeriph
         }
         if (FAKED) {
             connectedUUID = nil
+            connected = "none"
         }
         if connectedperip != nil {
             central.cancelPeripheralConnection(connectedperip!)
@@ -90,11 +91,12 @@ class BLEmanager: NSObject, ObservableObject, CBCentralManagerDelegate, CBPeriph
     }
     
     func stopScanning() {
-        print("Stopping Scanning...")
+        print("Stopping Scanning... (Reset list too)")
         central.stopScan()
+        peripherals.removeAll()
     }
     
-    @objc func refreshing() { //used with the timer in content view
+    @objc func refreshing() { //used with the timer in content view (WOULDVE BEEN , NOW OBSOLETE)
         central.stopScan()
         central.scanForPeripherals(withServices: nil, options: nil)
     }
@@ -104,11 +106,11 @@ class BLEmanager: NSObject, ObservableObject, CBCentralManagerDelegate, CBPeriph
         disconnect()
         //just making sure it actually disconnects lol
         connectedUUID = nil
+        connected = "none"
         connectedperip = nil
         
         refreshing()
     }
-    
     
     
     //THERE ARE MANY TYPES OF CENTRAL MANAGER!!!!
@@ -125,6 +127,7 @@ class BLEmanager: NSObject, ObservableObject, CBCentralManagerDelegate, CBPeriph
         //then add it to the list of peripherals
         if let ind = peripherals.firstIndex(where: {$0.id == peripheral.id}) { //if its in the thing
             if peripheral.id == connectedUUID {
+                strength = peripheral.rssi
                 gotagain = true
                 refreshing() //refresh if you find the one youre connected to
             }
@@ -136,6 +139,7 @@ class BLEmanager: NSObject, ObservableObject, CBCentralManagerDelegate, CBPeriph
     }
     
     func clearStack() {
+        print("Cleared the stack!")
         peripherals.removeAll() //yeah
         refreshing()
     }
@@ -158,6 +162,8 @@ class BLEmanager: NSObject, ObservableObject, CBCentralManagerDelegate, CBPeriph
             connectedperip = nil
             if !(FAKED) { //leave the UUID if we wanna pseudo!!!
                 connectedUUID = nil
+                
+                connected = "none"
             }
         }
     }
@@ -169,6 +175,8 @@ class BLEmanager: NSObject, ObservableObject, CBCentralManagerDelegate, CBPeriph
         if perip.identifier == connectedUUID {
             connectedperip = nil
             connectedUUID = nil
+            
+            connected = "none"
         }
     }
     
@@ -193,6 +201,12 @@ class BLEmanager: NSObject, ObservableObject, CBCentralManagerDelegate, CBPeriph
                 print("SERVICE CHARACTERISTIC FOUND: \(C.uuid)")
             }
         }
+    }
+    
+    func seen(_ uuid: UUID) -> Bool {
+        //if this UUID in peripherals return true, else false
+        return (peripherals.firstIndex(where: {$0.id == uuid}) != nil)
+        
     }
 
     //fin fin fin 
