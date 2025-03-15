@@ -2,7 +2,7 @@
 //  Finder_by_RelocaneApp.swift
 //  Finder by Relocane
 //
-//  Created by Coding Club on 1/27/25.
+//  Created by: RELOCANE LLC on 1/27/25.
 //
 
 import SwiftUI
@@ -11,7 +11,8 @@ import SwiftUI
 struct RelocaneApp: App {
     var body: some Scene {
         WindowGroup {
-            BluetoothDevicesView()
+            ContentView()
+                .environmentObject(BLEmanager())
         }
     }
 }
