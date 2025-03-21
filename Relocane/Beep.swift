@@ -45,7 +45,7 @@ class Beep: NSObject, ObservableObject{
                 count = 0
             }
             
-            if (abs(strength-last_strength) > 50) {
+            if (strength>0 || abs(strength-last_strength) > 50) {
                 strength = last_strength
             }
             
@@ -56,10 +56,16 @@ class Beep: NSObject, ObservableObject{
                 return
             }
             else {
+                audio.prepareToPlay()
+                
+                //rate is 1.25^1 if strength = 90, about 5 when strength = 3
+                audio.rate = Float(pow(1.25, 10 + round(Double(strength) / 10.0)))
+                
                 audio.play()
+                
             }
-            sleep(UInt32(10 * Int(round(Double(strength) / 10.0)) * 10))
-            //big ass thing to round the strength
+            //UInt32(10 * Int(round(Double(strength) / 10.0)) * 10)
+            //big ass thing to round the strength to nearest 10 an uint32 to put it into the sleep func
         }
     }
     
