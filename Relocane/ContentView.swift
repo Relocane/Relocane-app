@@ -48,20 +48,27 @@ struct MainView: View{
     @StateObject var beep = Beep()
     @State var activated = true
     
-    
     var body: some View {
         NavigationStack {
             Button(action:{
-                print("HIT")
-                if bleManager.connectedUUID != nil {
-                    //locate
-                    beep.start()
-                    beep.strength = bleManager.strength //hopefully this updates
-                    speaker.speak(phrase: "Finding cane")
+                if beep.stopping {
                     
                 }
+                else if beep.enabled {
+                    beep.stop()
+                }
                 else {
-                    speaker.speak(phrase: "No device connected.")
+                    if bleManager.connectedUUID != nil {
+                        //locate
+                        bleManager.startScanning()
+                        beep.start()
+                        beep.strength = bleManager.strength //hopefully this updates
+                        speaker.speak(phrase: "Finding cane")
+                        
+                    }
+                    else {
+                        speaker.speak(phrase: "No device connected.")
+                    }
                 }
             }){
                 Text((bleManager.connectedUUID == nil ? "Go to settings, connect a device" : "RELOCANE: Locate Cane Device"))
@@ -91,6 +98,7 @@ struct MainView: View{
             }
         }
         .onAppear {
+            beep.BLE = bleManager
             print("ID: "+(bleManager.connectedUUID?.uuidString ?? "NO CONNECTED UUID"))
             bleManager.startScanning()
         }
