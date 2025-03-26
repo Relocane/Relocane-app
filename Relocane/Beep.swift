@@ -13,6 +13,7 @@ var speaker = Speaker()
 class Beep: NSObject, ObservableObject{
     var strength = -100
     var last_strength = -100
+    var best_strength = -100
     var audio = AVAudioPlayer()
     var spoken = 40
     public var BLE: BLEmanager!
@@ -67,11 +68,13 @@ class Beep: NSObject, ObservableObject{
             }
             
             self.last_strength = self.strength
-            
-            if (self.count >= 5 && !self.BLE.seen(self.BLE.connectedUUID!)) {
+            print(self.count)
+            if (self.count >= 10) {
                 speaker.speak(phrase: "Device not found nearby. Stopping scanning.")
+                self.count = 0
                 self.stopping = false
                 self.enabled = false
+                self.BLE.clearStack()
                 return
             }
             else {
@@ -79,9 +82,10 @@ class Beep: NSObject, ObservableObject{
                 
                 //rate is 1.25^1 if strength = 90, about 5 when strength = 3
                 self.audio.enableRate = true
-                self.audio.rate = Float(pow(1.4, 10 - round(Double(self.strength * -1) / 10.0))) + (self.strength > -50 ? 1.0 : 0.0)
+                self.audio.rate = Float(pow(1.4, 10 - round(Double(self.strength * -1) / 10.0))) + (self.strength > -60 ? 1.0 : 0.0) + (self.strength > -40 ? 2.0 : 1.0)
+                //added some bonuses to behind above -60, then more for above -40
                 self.audio.volume = 0.3 * self.audio.rate
-                print(self.audio.volume)
+                print("Current rate: ", self.audio.rate)
                 
                 self.audio.play()
                 self.run(true)
