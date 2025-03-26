@@ -76,9 +76,13 @@ struct MainView: View{
                            maxHeight: UIScreen.main.bounds.height / 1.3)
             }   .buttonStyle(BorderedButtonStyle())
                 .onAppear{
-                    speaker.speak(phrase : ((bleManager.connectedUUID == nil) ? "Please give the phone to someone who can find the REE LOW CANE locator device in the Settings menu. This page is not yet easily accessible to the visually impaired." : "Ree low cane app ready! Press the middle of the screen to start locating."))
+                    if !beep.enabled {
+                        speaker.speak(phrase : ((bleManager.connectedUUID == nil) ? "Please give the phone to someone who can find the REE LOW CANE locator device in the Settings menu. This page is not yet easily accessible to the visually impaired." : "Ree low cane app ready! Press the middle of the screen to start locating."))
+                    }
                 }
-                .accessibilityInputLabels(["Button","Locate Cane","Find Cane","Where is my cane","Donde esta","Where my cane at"])
+                .accessibilityInputLabels(["Button","Locate Cane","Find Cane","Where is my cane","Donde esta","Where my cane at","Start locating","Start","Done","Found Cane"])
+                //.accessibilityInputLabels(["Done","Button","Cane","Found"], isEnabled: beep.enabled)
+            
             
             //settings
             
@@ -100,7 +104,9 @@ struct MainView: View{
         .onAppear {
             beep.BLE = bleManager
             print("ID: "+(bleManager.connectedUUID?.uuidString ?? "NO CONNECTED UUID"))
-            bleManager.startScanning()
+            if (bleManager.on) {
+                bleManager.startScanning()
+            }
         }
         
     }
