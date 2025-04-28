@@ -80,26 +80,42 @@ struct MainView: View{
                         speaker.speak(phrase : ((bleManager.connectedUUID == nil) ? "Please give the phone to someone who can find the REE LOW CANE locator device in the Settings menu. This page is not yet easily accessible to the visually impaired." : "Ree low cane app ready! Press the middle of the screen to start locating."))
                     }
                 }
-                .accessibilityInputLabels(["Button","Locate Cane","Find Cane","Where is my cane","Donde esta","Where my cane at","Start locating","Start","Done","Found Cane"])
+                .accessibilityInputLabels(["Button","Locate Cane","Find Cane","Where is my cane","Donde esta","Where my cane at","Start locating","Done","Found Cane","Fuck","Where my shit"])
                 //.accessibilityInputLabels(["Done","Button","Cane","Found"], isEnabled: beep.enabled)
             
             
             //settings
             
             Spacer()
-            NavigationLink(destination: {
-                BluetoothDevicesView().environmentObject(bleManager)
-                    .onAppear {
-                        speaker.stop()
-                    }
-            }) {
-                Text("Settings")
+            HStack {
+                NavigationLink(destination: {
+                    BluetoothDevicesView().environmentObject(bleManager)
+                        .onAppear {
+                            speaker.stop()
+                        }
+                }) {
+                    Text("Settings")
+                }
+                
+                Button(action: {
+                    beep.toggle()
+                    speaker.speak(phrase: "Checkpoints turned " + (beep.speakit ? "on" : "off"))
+                }) {
+                    Text("Checkpoints : " + String(beep.speakit))
+                }.buttonStyle(BorderedProminentButtonStyle())
+                    .accessibilityInputLabels(["Checkpoints"])
+                
+                Button(action: {
+                    speaker.speak(phrase: "Welcome to the REE LOW CANE app for the blind. . " + (bleManager.connectedUUID == nil ? "More setup is required, please get a sighted person to connect to the REE LOW CANE device." : "By pressing the button in the middle of the screen, beeping will start. The faster and louder the beeping gets, the closer you are to your cane. To toggle checkpoints, please say 'checkpoints'. This will give additional help in relocating your cane. "))
+                }){
+                    Text("Info")
+                }
+                .accessibilityInputLabels(["Instructions","Info","Help"])
             }
-            
             
             NavigationLink(destination: EmptyView()) {
                 EmptyView()
-            }
+            } //literally to prevent an error lol
         }
         .onAppear {
             beep.BLE = bleManager
