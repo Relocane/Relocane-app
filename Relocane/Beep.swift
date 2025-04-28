@@ -11,10 +11,14 @@ import SwiftUI
 var speaker = Speaker()
 
 class Beep: NSObject, ObservableObject{
+    
+    var speakit = false //controls whether the voice speaks checkpoints (ex: 50 achieved, 40 achieved)
+    var best_strength = -100
+    
     var strength = -100
     var last_strength = -100
-    var best_strength = -100
     var audio = AVAudioPlayer()
+    var last_strengths = [Int]()
     var spoken = 40
     public var BLE: BLEmanager!
     var enabled = false
@@ -35,6 +39,11 @@ class Beep: NSObject, ObservableObject{
             print(":( couldnt read the sound sonar sound wahhh")
         }
     }
+    
+    func toggle() {
+        speakit = !speakit
+    }
+    
     func run(_ shouldwait: Bool = true) {
         if (!enabled){
             stopping = false
@@ -50,11 +59,11 @@ class Beep: NSObject, ObservableObject{
             if (!self.enabled) { self.stopping = false; return }
             
             self.audio.currentTime = 0
-            print("Locating, current strength is ", self.strength)
+            print(" Strength: ", self.strength,", Last: ",self.last_strength,", Best: ",self.best_strength,", Count:",self.count)
             self.strength = Int(self.BLE.strength)
             
             if (self.strength == self.last_strength) {
-                if (self.strength == -100 && self.count >= 2) {
+                if (self.strength == -100 && self.count >= 2 && self.count % 3 == 0) {
                     speaker.speak(phrase: "Waiting...")
                 }
                 self.count += 1
@@ -68,8 +77,10 @@ class Beep: NSObject, ObservableObject{
             }
             
             self.last_strength = self.strength
-            print(self.count)
-            if (self.count >= 10) {
+            
+            
+            
+            if (self.count >= (self.audio.rate > 10 ? 20 : 10)) {
                 speaker.speak(phrase: "Device not found nearby. Stopping scanning.")
                 self.count = 0
                 self.stopping = false
@@ -78,16 +89,36 @@ class Beep: NSObject, ObservableObject{
                 return
             }
             else {
+                
+                //for rolling average
+                if (self.last_strengths.count == 3) {
+                    self.last_strengths.removeLast()
+                }
+                self.last_strengths.append(self.strength)
+                
+                let T = self.last_strengths
+                let NEW = Double(T[0] + (T.count > 1 ? T[1] : T[0]) + (T.count > 2 ? T[2] : T[0])) / 3.0
+                
                 self.audio.prepareToPlay()
                 
                 //rate is 1.25^1 if strength = 90, about 5 when strength = 3
                 self.audio.enableRate = true
-                self.audio.rate = Float(pow(1.4, 10 - round(Double(self.strength * -1) / 10.0))) + (self.strength > -60 ? 1.0 : 0.0) + (self.strength > -40 ? 2.0 : 1.0)
+                self.audio.rate = Float(pow(NEW > -60 ? 1.5 : 1.4, 10 - round(Double(NEW * -1) / 10.0)))
+                // + (self.strength > -60 ? 1.0 : 0.0) + (self.strength > -50 ? 2.0 : 0.0
                 //added some bonuses to behind above -60, then more for above -40
-                self.audio.volume = 0.3 * self.audio.rate
+                self.audio.volume = 0.3 * self.audio.rate * (self.speakit ? 0.2 : 1)
                 print("Current rate: ", self.audio.rate)
                 
                 self.audio.play()
+                
+                //this is for the checkpoint thing
+                if (self.speakit && (self.best_strength > Int(round(Double(self.strength * -1) / 10.0)))) {
+                    print("Bested!!!")
+                    speaker.speak(phrase: "Proximity "+String(Int(round(Double(self.strength * -1) / 10.0)) - 2)+" achieved")
+
+                    self.best_strength = Int(round(Double(self.strength * -1) / 10.0))
+                }
+                
                 self.run(true)
             }
         } //end timer
@@ -95,6 +126,7 @@ class Beep: NSObject, ObservableObject{
     func start() {
         enabled = true
         last_strength = Int(BLE.strength)
+        best_strength = Int(round(Double(last_strength * -1) / 10.0))
         run(false)
         //UInt32(10 * Int(round(Double(strength) / 10.0)) * 10)
         //big ass thing to round the strength to nearest 10 an uint32 to put it into the sleep func
