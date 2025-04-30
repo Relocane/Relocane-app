@@ -13,6 +13,7 @@ struct RelocaneApp: App {
         WindowGroup {
             ContentView()
                 .environmentObject(BLEmanager())
+                .environmentObject(Beep())
         }
     }
 }
