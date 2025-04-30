@@ -45,7 +45,7 @@ struct BluetoothSettingsView: View {
 struct MainView: View{
     @EnvironmentObject var bleManager : BLEmanager
     @StateObject var speaker = Speaker()
-    @StateObject var beep = Beep()
+    @EnvironmentObject var beep: Beep
     @State var activated = true
     
     var body: some View {
@@ -89,7 +89,8 @@ struct MainView: View{
             Spacer()
             HStack {
                 NavigationLink(destination: {
-                    BluetoothDevicesView().environmentObject(bleManager)
+                    BluetoothDevicesView()
+                        .environmentObject(bleManager)
                         .onAppear {
                             speaker.stop()
                         }
@@ -130,6 +131,11 @@ struct MainView: View{
 
 struct BluetoothDevicesView: View {
     @EnvironmentObject var bleManager : BLEmanager
+    @EnvironmentObject var beep : Beep
+    @State var enabled1 = false //used for speaking/storing Best
+    @State var enabled2 = false //used for speaking/store Area
+    @StateObject var speaker = Speaker()
+    
     var body: some View {
         NavigationStack {
             VStack(spacing: 10) {
@@ -184,7 +190,7 @@ struct BluetoothDevicesView: View {
                             .foregroundStyle(.teal)
                     }
                     else if let UU = bleManager.connectedUUID {
-                        Text("Stored ID: "+(UU.uuidString.prefix(8))+"...")
+                        Text("Stored ID: "+(UU.uuidString.prefix(8))+"... Best: "+String(beep.best)+", Area: "+String(beep.area))
                             .foregroundStyle(.orange)
                     }
                     else {
@@ -197,12 +203,7 @@ struct BluetoothDevicesView: View {
             }
             
             
-            .onDisappear {
-                //bleManager.clearStack()
-            }
-            
             .onAppear {
-                //bleManager.clearStack()
                 if bleManager.on {
                     bleManager.startScanning()
                     //let timer = Timer.scheduledTimer(timeInterval: 1.0, target: self, selector: #selector(bleManager.refreshing), userInfo: nil, repeats: true)
@@ -210,11 +211,42 @@ struct BluetoothDevicesView: View {
             }
             
             VStack {
-                NavigationLink(destination: {MainView().environmentObject(bleManager)}) {
+                NavigationLink(destination: {MainView()
+                        .environmentObject(bleManager)
+                        .environmentObject(beep)}) {
                     Text("Back to Relocane")
                 }
-                Spacer()
-                NavigationLink(destination: {BluetoothSettingsView().environmentObject(bleManager)}) {
+                
+                Button(action: {
+                    if (!enabled1){
+                        speaker.speak(phrase: "Hold the phone right next to the device. Then press this button again to set the signal strength as the signal strength that will be considered the closest to the device possible.")
+                    }
+                    else{
+                        beep.storeBest(bleManager.strength)
+                        speaker.speak(phrase: "Stored best strength.")
+                    }
+                    enabled1 = !enabled1
+                    }) {
+                    Text("Store Best Strength")
+                }.buttonStyle(BorderedProminentButtonStyle())
+                
+                
+                Button(action: {
+                    if (!enabled2){
+                        speaker.speak(phrase: "Hold the phone within the bounds of the desireable area around the device. This will be the area where the beeping ramps up very fast.")
+                    }
+                    else{
+                        beep.storeArea(bleManager.strength)
+                        speaker.speak(phrase: "Stored desired Area.")
+                    }
+                    enabled2 = !enabled2
+                    }) {
+                    Text("Store Desired Area")
+                }.buttonStyle(BorderedProminentButtonStyle())
+                
+                
+                NavigationLink(destination: {BluetoothSettingsView().environmentObject(bleManager)
+                    .environmentObject(beep)}) {
                     Text("Settings")
                 }
             }
@@ -227,21 +259,29 @@ struct BluetoothDevicesView: View {
 
 struct ContentView_Previews: PreviewProvider {
     static var previews: some View {
-        ContentView().environmentObject(BLEmanager())
+        ContentView()
+            .environmentObject(BLEmanager())
+            .environmentObject(Beep())
     }
 }
 struct MainView_Previews: PreviewProvider {
     static var previews: some View {
-        MainView().environmentObject(BLEmanager())
+        MainView()
+            .environmentObject(BLEmanager())
+            .environmentObject(Beep())
     }
 }
 struct BluetoothDevicesView_Previews: PreviewProvider {
     static var previews: some View {
-        BluetoothDevicesView().environmentObject(BLEmanager())
+        BluetoothDevicesView()
+            .environmentObject(BLEmanager())
+            .environmentObject(Beep())
     }
 }
 struct BluetoothSettingsView_Previews: PreviewProvider {
     static var previews: some View {
-        BluetoothSettingsView().environmentObject(BLEmanager())
+        BluetoothSettingsView()
+            .environmentObject(BLEmanager())
+            .environmentObject(Beep())
     }
 }
