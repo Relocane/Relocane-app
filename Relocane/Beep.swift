@@ -26,6 +26,9 @@ class Beep: NSObject, ObservableObject{
     var count = 0 //counts how many times the same strength has repeated
     //when it repeats more than 5? times we say we cant see the device
     
+    @AppStorage("NUMBER_KEY") var best = -40
+    @AppStorage("NUMBER_KEY") var area = -60
+    
     override init() {
         super.init()
         guard let file = NSDataAsset(name: "sonar") else {
@@ -42,6 +45,12 @@ class Beep: NSObject, ObservableObject{
     
     func toggle() {
         speakit = !speakit
+    }
+    func storeBest(_ thingie: Int){
+        best = thingie
+    }
+    func storeArea(_ thingie: Int){
+        area = thingie
     }
     
     func run(_ shouldwait: Bool = true) {
@@ -103,9 +112,15 @@ class Beep: NSObject, ObservableObject{
                 
                 //rate is 1.25^1 if strength = 90, about 5 when strength = 3
                 self.audio.enableRate = true
-                self.audio.rate = Float(pow(NEW > -60 ? 1.5 : 1.4, 10 - round(Double(NEW * -1) / 10.0)))
-                // + (self.strength > -60 ? 1.0 : 0.0) + (self.strength > -50 ? 2.0 : 0.0
-                //added some bonuses to behind above -60, then more for above -40
+                
+                
+                self.audio.rate = Float(pow(NEW > Double(self.area) ? 1.5 : 1.4, 10 - round(Double(NEW * -1) / 10.0))) + ((NEW+2.0) > Double(self.best) ? 2 : 0)
+                //NEW SYSTEM:
+                //When you get above self.area, the exponential goes from 1.4^x to 1.5^x
+                //When you get above self.best, just a flat bonus of 2
+                
+                
+                
                 self.audio.volume = 0.3 * self.audio.rate * (self.speakit ? 0.2 : 1)
                 print("Current rate: ", self.audio.rate)
                 
