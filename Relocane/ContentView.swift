@@ -80,7 +80,7 @@ struct MainView: View{
                         speaker.speak(phrase : ((bleManager.connectedUUID == nil) ? "Please give the phone to someone who can find the REE LOW CANE locator device in the Settings menu. This page is not yet easily accessible to the visually impaired." : "Ree low cane app ready! Press the middle of the screen to start locating."))
                     }
                 }
-                .accessibilityInputLabels(["Button","Locate Cane","Find Cane","Where is my cane","Donde esta","Where my cane at","Start locating","Done","Found Cane","Fuck","Where my shit"])
+                .accessibilityInputLabels(["Button","Locate Cane","Find Cane","Where is my cane","Donde esta","Where my cane at","Start locating","Done","Found Cane","Fuck","Where my shit at"])
                 //.accessibilityInputLabels(["Done","Button","Cane","Found"], isEnabled: beep.enabled)
             
             
