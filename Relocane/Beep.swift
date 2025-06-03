@@ -12,19 +12,21 @@ var speaker = Speaker()
 
 class Beep: NSObject, ObservableObject{
     
-    var speakit = false //controls whether the voice speaks checkpoints (ex: 50 achieved, 40 achieved)
-    var best_strength = -100
+    // var speakit = false //controls whether the voice speaks checkpoints (ex: 50 achieved, 40 achieved) THIS IS DISABLED
+    //var last_strengths = [Int]()//this used to be for a rolloing average, THIS IS DISABLED
+    //var spoken = 40 this used to be for checkpoints, THIS IS DISABLED
     
+    var best_strength = -100
     var strength = -100
     var last_strength = -100
+    
     var audio = AVAudioPlayer()
-    var last_strengths = [Int]()
-    var spoken = 40
     public var BLE: BLEmanager!
+    
     var enabled = false
     var stopping = false
+    
     var count = 0 //counts how many times the same strength has repeated
-    //when it repeats more than 5? times we say we cant see the device
     
     @AppStorage("NUMBER_KEY") var best = -40
     @AppStorage("NUMBER_KEY") var area = -60
@@ -43,9 +45,6 @@ class Beep: NSObject, ObservableObject{
         }
     }
     
-    func toggle() {
-        speakit = !speakit
-    }
     func storeBest(_ thingie: Int){
         best = thingie
     }
@@ -65,11 +64,13 @@ class Beep: NSObject, ObservableObject{
         }
         
         Timer.scheduledTimer(withTimeInterval: timertime, repeats: false) {_ in
-            if (!self.enabled) { self.stopping = false; return }
+            if (!self.enabled) {
+                self.stopping = false; return
+            }
             
-            self.audio.currentTime = 0
-            print(" Strength: ", self.strength,", Last: ",self.last_strength,", Best: ",self.best_strength,", Count:",self.count)
+            self.audio.currentTime = 0 //reset audio to start
             self.strength = Int(self.BLE.strength)
+            
             
             if (self.strength == self.last_strength) {
                 if (self.strength == -100 && self.count >= 2 && self.count % 3 == 0) {
@@ -81,12 +82,10 @@ class Beep: NSObject, ObservableObject{
                 self.count = 0
             }
             
+            //for checking if we get like 127 randomly, since sometimes the signal strength has a stroke
             if (self.strength>0 || abs(self.strength-self.last_strength) > 80) {
                 self.strength = self.last_strength
             }
-            
-            self.last_strength = self.strength
-            
             
             
             if (self.count >= (self.audio.rate > 10 ? 20 : 10)) {
@@ -98,42 +97,26 @@ class Beep: NSObject, ObservableObject{
                 return
             }
             else {
+                let NEW = Double(self.last_strength) + Double(self.strength - self.last_strength) / 2.0
                 
-                //for rolling average
-                if (self.last_strengths.count == 3) {
-                    self.last_strengths.removeLast()
-                }
-                self.last_strengths.append(self.strength)
+                self.last_strength = Int(NEW)
                 
-                let T = self.last_strengths
-                let NEW = Double(T[0] + (T.count > 1 ? T[1] : T[0]) + (T.count > 2 ? T[2] : T[0])) / 3.0
+                
+                print("Current NEW:",NEW,"|Target:",self.strength,"|Area:",self.area)
+                
                 
                 self.audio.prepareToPlay()
-                
-                //rate is 1.25^1 if strength = 90, about 5 when strength = 3
                 self.audio.enableRate = true
                 
+                let ROUNDER = round(Double(NEW * -1) * 2 / 10.0) / 2 //rounds the sig strength to the nearest 5?
                 
-                self.audio.rate = Float(pow(NEW > Double(self.area) ? 1.5 : 1.4, 10 - round(Double(NEW * -1) / 10.0))) + ((NEW+2.0) > Double(self.best) ? 2 : 0)
-                //NEW SYSTEM:
-                //When you get above self.area, the exponential goes from 1.4^x to 1.5^x
-                //When you get above self.best, just a flat bonus of 2
+                self.audio.rate = Int(NEW) < self.area ? 4 : Float(pow(1.5, 10 - ROUNDER)) + ((NEW+2.0) > Double(self.best) ? 2 : 0)
+                self.audio.volume = Int(NEW) < self.area ? 0.2 : pow(1.1, self.audio.rate) //* (self.speakit ? 0.2 : 1)
                 
-                
-                
-                self.audio.volume = 0.3 * self.audio.rate * (self.speakit ? 0.2 : 1)
                 print("Current rate: ", self.audio.rate)
                 
+                
                 self.audio.play()
-                
-                //this is for the checkpoint thing
-                if (self.speakit && (self.best_strength > Int(round(Double(self.strength * -1) / 10.0)))) {
-                    print("Bested!!!")
-                    speaker.speak(phrase: "Proximity "+String(Int(round(Double(self.strength * -1) / 10.0)) - 2)+" achieved")
-
-                    self.best_strength = Int(round(Double(self.strength * -1) / 10.0))
-                }
-                
                 self.run(true)
             }
         } //end timer
@@ -145,6 +128,14 @@ class Beep: NSObject, ObservableObject{
         run(false)
         //UInt32(10 * Int(round(Double(strength) / 10.0)) * 10)
         //big ass thing to round the strength to nearest 10 an uint32 to put it into the sleep func
+    }
+    
+    func STOPPING(){ //used for stopping the button from being spammed with the switching from cane to phone
+        stopping = true
+    }
+    
+    func UNSTOPPING(){
+        stopping = false
     }
     
     func stop() {
