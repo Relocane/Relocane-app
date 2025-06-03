@@ -52,13 +52,33 @@ struct MainView: View{
         NavigationStack {
             Button(action:{
                 if beep.stopping {
-                    
+                    print("--- --- Waiting, phone beeping is stopping")
+                }
+                else if bleManager.STOP_BEEP {
+                    print("--- --- Starting cane beeping")
+                    if bleManager.FAKED {
+                        bleManager.togglePuesdo()
+                    }
+                    if beep.enabled {
+                        beep.stop()
+                    }
+                    speaker.speak(phrase: "Cane will start beeping. Press the button again to stop, and switch to phone location.")
+                    bleManager.cane_beeping()
                 }
                 else if beep.enabled {
+                    print("--- --- Stopped phone beep")
                     beep.stop()
+                    speaker.speak(phrase: "Stopped phone location.")
+                    bleManager.STOP_BEEP = true
                 }
                 else {
+                    print("--- --- Stopping cane beeping, phone locating!!!!")
+                    bleManager.stop_cane_beeping()
                     if bleManager.connectedUUID != nil {
+                        if bleManager.connectedperip != nil { //this SHOULD always be true, but just to be sure
+                            bleManager.FAKED = true
+                            bleManager.central.cancelPeripheralConnection(bleManager.connectedperip!)
+                        }
                         //locate
                         bleManager.startScanning()
                         beep.start()
@@ -98,16 +118,24 @@ struct MainView: View{
                     Text("Settings")
                 }
                 
-                Button(action: {
-                    beep.toggle()
-                    speaker.speak(phrase: "Checkpoints turned " + (beep.speakit ? "on" : "off"))
-                }) {
-                    Text("Checkpoints : " + String(beep.speakit))
-                }.buttonStyle(BorderedProminentButtonStyle())
-                    .accessibilityInputLabels(["Checkpoints"])
+                //Button(action: {
+                //    beep.toggle()
+                //    speaker.speak(phrase: "Checkpoints turned " + (beep.speakit ? "on" : "off"))
+                //}) {
+                //    Text("Checkpoints : " + String(beep.speakit))
+                // }.buttonStyle(BorderedProminentButtonStyle())
+                //    .accessibilityInputLabels(["Checkpoints"])
                 
                 Button(action: {
-                    speaker.speak(phrase: "Welcome to the REE LOW CANE app for the blind. . " + (bleManager.connectedUUID == nil ? "More setup is required, please get a sighted person to connect to the REE LOW CANE device." : "By pressing the button in the middle of the screen, beeping will start. The faster and louder the beeping gets, the closer you are to your cane. To toggle checkpoints, please say 'checkpoints'. This will give additional help in relocating your cane. "))
+                    bleManager.sendData("E")
+                    speaker.speak(phrase: "Sent")
+                }) {
+                    Text("Send data to connected thing")
+                }.buttonStyle(BorderedProminentButtonStyle())
+                    .accessibilityInputLabels(["Beep"])
+                
+                Button(action: {
+                    speaker.speak(phrase: "Welcome to the REE LOW CANE app for the blind. . " + (bleManager.connectedUUID == nil ? "More setup is required, please get a sighted person to connect to the REE LOW CANE device." : "By tapping the button in the middle of the screen, you can toggle between the device beeping, and your phone beeping. Use the device beeping to find your cane from far away, and your phone beeping to find the exact spot of your cane. Long press or hold the button to stop the REE LOW CANE app, showing us you have found your cane."))
                 }){
                     Text("Info")
                 }
@@ -132,8 +160,6 @@ struct MainView: View{
 struct BluetoothDevicesView: View {
     @EnvironmentObject var bleManager : BLEmanager
     @EnvironmentObject var beep : Beep
-    @State var enabled1 = false //used for speaking/storing Best
-    @State var enabled2 = false //used for speaking/store Area
     @StateObject var speaker = Speaker()
     
     var body: some View {
@@ -218,28 +244,20 @@ struct BluetoothDevicesView: View {
                 }
                 
                 Button(action: {
-                    if (!enabled1){
-                        speaker.speak(phrase: "Hold the phone right next to the device. Then press this button again to set the signal strength as the signal strength that will be considered the closest to the device possible.")
-                    }
-                    else{
-                        beep.storeBest(bleManager.strength)
-                        speaker.speak(phrase: "Stored best strength.")
-                    }
-                    enabled1 = !enabled1
+                    //speaker.speak(phrase: "Hold the phone right next to the device. Then press this button again to set the signal strength as the signal strength that will be considered the closest to the device possible.")
+                    
+                    beep.storeBest(bleManager.strength)
+                    speaker.speak(phrase: "Stored best strength.")
+                    
                     }) {
                     Text("Store Best Strength")
                 }.buttonStyle(BorderedProminentButtonStyle())
                 
                 
                 Button(action: {
-                    if (!enabled2){
-                        speaker.speak(phrase: "Hold the phone within the bounds of the desireable area around the device. This will be the area where the beeping ramps up very fast.")
-                    }
-                    else{
-                        beep.storeArea(bleManager.strength)
-                        speaker.speak(phrase: "Stored desired Area.")
-                    }
-                    enabled2 = !enabled2
+                    //speaker.speak(phrase: "Hold the phone within the bounds of the desireable area around the device. This will be the area where the beeping ramps up very fast.")
+                    beep.storeArea(bleManager.strength)
+                    speaker.speak(phrase: "Stored desired Area.")
                     }) {
                     Text("Store Desired Area")
                 }.buttonStyle(BorderedProminentButtonStyle())
