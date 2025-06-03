@@ -21,13 +21,17 @@ class BLEmanager: NSObject, ObservableObject, CBCentralManagerDelegate, CBPeriph
     @Published var strength = -100 //STRENGTH FOR THE BEEP
     @Published var startConnect = false //false = hit connect, hasnt connected
     @Published var gotagain = true //when you connect to a device, did you see it again?
-    @Published var FAKED = true //if youre trying to pseudo connect, we need this for BOB (prioritize only BOB without actually connecting)
+    @Published var THECHAR: CBCharacteristic?
     //make FAKED start at true, stored mode by default
+    
+    @Published var FAKED = false //if youre trying to pseudo connect, we need this for BOB (prioritize only BOB without actually connecting)
+    @Published var FINDME = true //FINDME is true when we need to find Relocane and connect to him, to allow us to beep
+    @Published var STOP_BEEP = true //when its true, cane_beeping will stop
     
     @AppStorage("STRING_KEY") var connected = "none"
     
     override init() {
-        print("New BLEmanager made...")
+        print("New BLEmanager made... trying to connect to connected perip")
         super.init() //super that initializer
         if (self.connected != "none") {
             connectedUUID = UUID(uuidString: connected) //hopefully loading the thingie???
@@ -59,15 +63,52 @@ class BLEmanager: NSObject, ObservableObject, CBCentralManagerDelegate, CBPeriph
         connectedUUID = n.identifier
         connected = connectedUUID?.uuidString ?? "none"
         n.delegate = self
-        print("starting connection...")
+        
         if (FAKED) {
-            print("Not actually connected via bluetooth, only prioritizing "+n.identifier.uuidString)
+            //print("Not actually connected via bluetooth, only prioritizing "+n.identifier.uuidString)
             refreshing()
             return
+        }
+        else {
+            print("Starting a real connection!")
         }
         connectedperip = n
         startConnect = true
         central.connect(n, options:nil)
+    }
+    
+    func sendData(_ message: String = "hey") {
+        if (connectedperip == nil){ return }
+        if (THECHAR == nil){
+            print("No Characteristic with char DFB1 found.... cant send")
+            return
+        }
+
+        //message.data technically can return nil IF not using a unicode encoding so its lowkey ass
+        connectedperip?.writeValue(message.data(using: .utf8)!, for: THECHAR!, type: CBCharacteristicWriteType.withoutResponse)
+    }
+    
+    func cane_beeping() {
+        if STOP_BEEP {
+            STOP_BEEP = false
+            Timer.scheduledTimer(withTimeInterval: 3.0, repeats: false) {_ in
+                self.cane_beeping()
+            }
+        }
+        else {
+            Timer.scheduledTimer(withTimeInterval: 3.0, repeats: false) { _ in
+                self.sendData()
+                if self.STOP_BEEP { //HOPEFULLY THIS CAN ONLY HAPPEN EXTERNALLY
+                    self.STOP_BEEP = false
+                    return
+                }
+                self.cane_beeping()
+            }
+        }
+    }
+    
+    func stop_cane_beeping() {
+        STOP_BEEP = true
     }
     
     func disconnect(_ pseudo: Bool = false) {
@@ -105,12 +146,9 @@ class BLEmanager: NSObject, ObservableObject, CBCentralManagerDelegate, CBPeriph
         FAKED = !FAKED
         disconnect()
         //just making sure it actually disconnects lol
-        connectedUUID = nil
-        connected = "none"
-        connectedperip = nil
-        
         refreshing()
     }
+    
     
     
     //THERE ARE MANY TYPES OF CENTRAL MANAGER!!!!
@@ -127,6 +165,9 @@ class BLEmanager: NSObject, ObservableObject, CBCentralManagerDelegate, CBPeriph
         //then add it to the list of peripherals
         if let ind = peripherals.firstIndex(where: {$0.id == peripheral.id}) { //if its in the thing
             if peripheral.id == connectedUUID {
+                if (FINDME) { //AUTO CONNECTING TO THE THING
+                    connect(to: peripheral)
+                }
                 strength = peripheral.rssi
                 gotagain = true
                 refreshing() //refresh if you find the one youre connected to
@@ -158,14 +199,14 @@ class BLEmanager: NSObject, ObservableObject, CBCentralManagerDelegate, CBPeriph
         print("disconnected!!!! device: \(perip.name ?? "unknown"), error: \(error?.localizedDescription ?? "no error info")")
         gotagain = true
         
-        if perip.identifier == connectedUUID {
-            connectedperip = nil
-            if !(FAKED) { //leave the UUID if we wanna pseudo!!!
-                connectedUUID = nil
-                
-                connected = "none"
-            }
+        //if perip.identifier == connectedUUID {
+        connectedperip = nil
+        
+        if !(FAKED || FINDME) { //leave the UUID if we wanna pseudo!!!
+            connectedUUID = nil
+            connected = "none" //dont clear this if were auto switching!!
         }
+        //}
     }
     
     //if failed to connect
@@ -199,6 +240,10 @@ class BLEmanager: NSObject, ObservableObject, CBCentralManagerDelegate, CBPeriph
         if let Cs = service.characteristics { //idk why bro didnt use guard
             for C in Cs {
                 print("SERVICE CHARACTERISTIC FOUND: \(C.uuid)")
+                
+                if (C.uuid.uuidString == "DFB1") {
+                    THECHAR = C
+                }
             }
         }
     }
